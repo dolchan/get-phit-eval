@@ -1,0 +1,526 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(readr)
+```
+
+
+```{r}
+cleaned_data_dir <- "cleaned/"
+```
+
+```{r}
+eval_registration_data <- read_csv(paste0(cleaned_data_dir, "eval_registration_data.csv"), show_col_types = FALSE)
+intern_bcreg_bceval_data <- read_csv(paste0(cleaned_data_dir, "intern_bcreg_bceval_data.csv"), show_col_types = FALSE)
+```
+
+
+
+
+```{r}
+agreement_levels_neutral <- c("Strongly Agree",
+                              "Agree",
+                              "Neutral",
+                              "Disagree",
+                              "Strongly Disagree")
+
+
+agreement_levels_neither <- c("Strongly agree",
+                              "Agree",
+                              "Neither agree or disagree",
+                              "Disagree",
+                              "Strongly disagree")
+
+
+consider_levels <- c("Definitely consider",
+                     "Might or might not consider",
+                     "Would not consider")
+
+confidence_levels <- c(
+  "Extremely confident",
+  "Quite confident",
+  "Somewhat confident",
+  "Slightly confident",
+  "Not at all confident"
+)
+```
+
+
+```{r}
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(tech_equity_readiness = factor(
+    tech_equity_readiness,
+    levels = agreement_levels_neutral
+  ))
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(self_assessment_data_analysis = factor(
+    self_assessment_data_analysis,
+    levels = agreement_levels_neither
+  ))
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(self_assessment_data_sourcing = factor(
+    self_assessment_data_sourcing,
+    levels = confidence_levels
+  ))
+
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(advanced_work_confidence = factor(
+    advanced_work_confidence,
+    levels = confidence_levels
+  ))
+
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(internship_interest_flag = factor(
+    internship_interest_flag,
+    levels = consider_levels
+  ))
+
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(internship_completed = ifelse(is.na(internship_semester), "No", "Yes"))
+```
+
+
+## GPA
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(current_gpa)) %>%
+  dplyr::select(current_gpa) %>%
+  dplyr::mutate(current_gpa = as.numeric(current_gpa)) %>%
+  summary()
+```
+
+
+## Still needs additional clean up for academic major names.
+
+```{r}
+eval_registration_data %>%
+  dplyr::select(academic_major) %>%
+  dplyr::mutate(academic_major = toupper(academic_major)) %>%
+  table() %>%
+  sort(decreasing = TRUE)
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::select(academic_major) %>%
+  dplyr::mutate(academic_major = toupper(academic_major)) %>%
+  dplyr::pull(academic_major) %>%
+  unique() %>%
+  sort()
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::select(student_classification) %>%
+  dplyr::mutate(student_classification = toupper(student_classification)) %>%
+  table() %>%
+  sort(decreasing = TRUE)
+```
+
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(is_english_native)) %>%
+  dplyr::select(native_language_detail, is_english_native) %>%
+  dplyr::mutate(native_language_detail = toupper(native_language_detail)) %>%
+  dplyr::mutate(native_language_detail = ifelse(is.na(native_language_detail), "English", native_language_detail)) %>%
+  dplyr::group_by(native_language_detail) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(n = desc(n))
+```
+
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(workload_pacing_gauge)) %>%
+  dplyr::select(workload_pacing_gauge) %>%
+  dplyr::group_by(workload_pacing_gauge) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(n = desc(n))
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(outside_study_hours)) %>%
+  dplyr::select(outside_study_hours) %>%
+  dplyr::group_by(outside_study_hours) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(outside_study_hours)
+```
+
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(tech_equity_readiness)) %>%
+  dplyr::select(tech_equity_readiness) %>%
+  dplyr::group_by(tech_equity_readiness) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(tech_equity_readiness)
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(self_assessment_data_analysis)) %>%
+  dplyr::select(self_assessment_data_analysis, tech_equity_readiness) %>%
+  dplyr::group_by(self_assessment_data_analysis, tech_equity_readiness) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = tech_equity_readiness,
+    names_from = self_assessment_data_analysis,
+    values_from = n,
+    values_fill = 0
+  ) 
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(self_assessment_data_sourcing)) %>%
+  dplyr::select(tech_equity_readiness, self_assessment_data_sourcing) %>%
+  dplyr::group_by(tech_equity_readiness, self_assessment_data_sourcing) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = tech_equity_readiness,
+    names_from = self_assessment_data_sourcing,
+    values_from = n,
+    values_fill = 0
+  ) 
+```
+
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(advanced_work_confidence)) %>%
+  dplyr::select(tech_equity_readiness, advanced_work_confidence) %>%
+  dplyr::group_by(tech_equity_readiness, advanced_work_confidence) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = tech_equity_readiness,
+    names_from = advanced_work_confidence,
+    values_from = n,
+    values_fill = 0
+  ) 
+```
+
+```{r}
+# let's generate bar charts for the self_assessment_data_analysis variable, color coded by the tech_equity_readiness variable
+eval_registration_data %>%
+  dplyr::filter(!is.na(self_assessment_data_analysis)) %>%
+  dplyr::select(self_assessment_data_analysis, tech_equity_readiness) %>%
+  dplyr::group_by(self_assessment_data_analysis, tech_equity_readiness) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = self_assessment_data_analysis, y = n, fill = tech_equity_readiness)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Self Assessment of Data Analysis Skills", y = "Count", fill = "Tech Equity Readiness") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+# let's generate bar charts for the tech_equity_readiness variable, color coded by the self_assessment_data_analysis variable
+eval_registration_data %>%
+  dplyr::filter(!is.na(tech_equity_readiness)) %>%
+  dplyr::select(self_assessment_data_analysis, tech_equity_readiness) %>%
+  dplyr::group_by(self_assessment_data_analysis, tech_equity_readiness) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = tech_equity_readiness, y = n, fill = self_assessment_data_analysis)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Tech Equity Readiness", y = "Count", fill = "Self Assessment of Data Analysis Skills") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+# let's generate bar charts for the tech_equity_readiness variable, color coded by the advanced_work_confidence variable
+eval_registration_data %>%
+  dplyr::filter(!is.na(tech_equity_readiness)) %>%
+  dplyr::select(advanced_work_confidence, tech_equity_readiness) %>%
+  dplyr::group_by(advanced_work_confidence, tech_equity_readiness) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = tech_equity_readiness, y = n, fill = advanced_work_confidence)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Tech Equity Readiness", y = "Count", fill = "Advanced Work Confidence") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+eval_registration_data %>%
+  dplyr::filter(!is.na(internship_interest_flag)) %>%
+  dplyr::select(advanced_work_confidence, internship_interest_flag) %>%
+  dplyr::group_by(advanced_work_confidence, internship_interest_flag) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = advanced_work_confidence,
+    names_from = internship_interest_flag,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+
+```{r}
+# let's generate bar charts for the tech_equity_readiness variable, color coded by the advanced_work_confidence variable
+eval_registration_data %>%
+  dplyr::filter(!is.na(internship_interest_flag)) %>%
+  dplyr::select(advanced_work_confidence, internship_interest_flag) %>%
+  dplyr::group_by(advanced_work_confidence, internship_interest_flag) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = internship_interest_flag, y = n, fill = advanced_work_confidence)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Internship Interest", y = "Count", fill = "Advanced Work Confidence") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+# let's generate bar charts for the tech_equity_readiness variable, color coded by the advanced_work_confidence variable
+eval_registration_data %>%
+  dplyr::filter(!is.na(internship_interest_flag)) %>%
+  dplyr::select(advanced_work_confidence, internship_interest_flag) %>%
+  dplyr::group_by(advanced_work_confidence, internship_interest_flag) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = advanced_work_confidence, y = n, fill = internship_interest_flag)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Advanced Work Confidence", y = "Count", fill = "Internship Interest") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(internship_modality, internship_interest) %>%
+  dplyr::group_by(internship_modality, internship_interest) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = internship_modality,
+    names_from = internship_interest,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(site_name, internship_completed) %>%
+  dplyr::group_by(site_name, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = site_name,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  arrange(desc(Yes))
+```
+
+
+```{r}
+shorten_school_name <- function(school_name) {
+  switch(school_name,
+    "Huston-Tillotson University" = "HTU",
+    "Prairie View A&M University" = "PVAMU",
+    "Texas A&M International University" = "TAMIU",
+    "University of Texas Health Science Center Houston" = "UTHSC",
+    "Texas Tech University Health Sciences Center" = "TTUHSC",
+    "University of Texas at Arlington" = "UTA",
+    "University of Texas at El Paso" = "UTEP",
+    "University of Texas at Tyler" = "UTT",
+    "University of Texas Rio Grande Valley" = "UTRGV",
+    "University of Texas Permian Basin" = "UTPB", 
+    "Huston-Tilloston (HTU)" = "HTU",
+    "Other" = "Other",
+    "University of Texas-Rio Grande Valley (UTRGV)" = "UTRGV",
+    "Prairie View A&M (PVAMU)" = "PVAMU",
+    "UT Health - School of Public Health (UT - SPH)" = "UT-SPH",
+    "Texas A&M International (TAMIU)" = "TAMIU",
+    "UT Health - School of Biomedical Informatics (UT - SBMI)" = "UT-SBMI",
+    "Texas Tech Health Science Center (TTUHSC)" = "TTUHSC",
+    "University of Texas-Arlington (UTA)" = "UTA",
+    "University of Texas-Tyler (UTT)" = "UTT",
+    "University of Texas-El Paso (UTEP)" = "UTEP",
+    "University of Texas-Permian Basin (UTPB)" = "UTPB",
+    "Texas Southern University (TSU)" = "TSU", 
+    NA)
+}
+
+shorten_school_names = function(school_names) {
+  unlist(lapply(school_names, shorten_school_name)) 
+}
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(school_affiliated_short = shorten_school_names(school_affiliated),
+                site_name_short = shorten_school_names(site_name))
+```
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(school_affiliated, internship_completed) %>%
+  dplyr::group_by(school_affiliated, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = school_affiliated,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  arrange(desc(Yes))
+```
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(mode, internship_completed) %>%
+  dplyr::group_by(mode, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = mode,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  arrange(desc(Yes))
+
+```
+
+
+```{r}
+intern_bcreg_bceval_site_school_mode_internship <-
+  intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(site_name)) %>%
+  dplyr::mutate(site_name = shorten_school_names(site_name),
+                school_affiliated = shorten_school_names(school_affiliated)) %>%
+  dplyr::select(site_name, school_affiliated, mode, internship_completed) %>%
+  dplyr::group_by(site_name, school_affiliated, mode, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") 
+```
+
+
+
+```{r}
+# intern_bcreg_bceval_site_school_mode_internship <-
+#   intern_bcreg_bceval_data %>%
+#   dplyr::filter(!is.na(site_name)) %>%
+#   dplyr::mutate(site_name = shorten_school_names(site_name),
+#                 school_affiliated = shorten_school_names(school_affiliated)) %>%
+#   dplyr::select(site_name, school_affiliated, internship_completed) %>%
+#   dplyr::group_by(site_name, school_affiliated, internship_completed) %>%
+#   dplyr::summarise(n = n(), .groups = "drop_last") 
+```
+
+
+```{r}
+library(ggalluvial)
+```
+
+
+
+
+```{r}
+intern_bcreg_bceval_site_school_mode_internship %>%
+  ggplot(
+    aes(
+      y = n,
+      axis1 = school_affiliated,
+      axis2 = site_name,
+      axis3 = mode,
+      axis4 = internship_completed
+    )
+  ) +
+  geom_alluvium(
+    aes(fill = internship_completed),
+    width = 1 / 8,
+  #  knot.pos = 0,
+    reverse = FALSE
+  ) +
+  geom_stratum(alpha = 0.25,
+               width = 1 / 6,
+               reverse = FALSE) +
+  geom_text(
+    stat = "stratum",
+    aes(label = after_stat(stratum)),
+    reverse = FALSE,
+    size = 3
+  ) +
+  scale_x_continuous(
+    breaks = 1:4,
+    labels = c("School Affiliation", "Site", "Mode", "Internship")
+  ) +
+  ggtitle("Internship completion by site and school affiliation")
+```
+
+
+```{r}
+intern_bcreg_bceval_site_school_mode_internship %>%
+  ggplot(aes(x = mode, y = n, stratum = internship_completed)) +
+  geom_alluvium(aes(fill = internship_completed), width = 1/8, knot.pos = 0, reverse = FALSE) +
+  geom_stratum(alpha = 0.25, width = 1/8, reverse = FALSE) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)), reverse = FALSE) +
+  scale_x_continuous(breaks = 1:3, labels = c("Site", "School Affiliation", "Internship")) +
+  ggtitle("Internship completion by site and school affiliation")
+```
+
+
+
+```{r}
+data(vaccinations)
+vaccinations <- transform(vaccinations,
+                          response = factor(response, rev(levels(response))))
+ggplot(vaccinations,
+       aes(x = survey, stratum = response, alluvium = subject,
+           y = freq,
+           fill = response, label = response)) +
+  scale_x_discrete(expand = c(.1, .1)) +
+  geom_flow() +
+  geom_stratum(alpha = .5) +
+  geom_text(stat = "stratum", size = 3) +
+  theme(legend.position = "none") +
+  ggtitle("vaccination survey responses at three points in time")
+```
+
+
+

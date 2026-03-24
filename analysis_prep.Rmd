@@ -1,0 +1,367 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(readr)
+```
+
+
+
+```{r}
+data_dir <- "../../Data/Bootcamp/"
+```
+
+
+```{r}
+eval_data <- read_excel(paste0(data_dir, "Bootcamp 2022-2025 Eval Data 10-31-25_cleaned.xlsx"), na = c("", "NA", "N/A"))
+registration_data <- read_excel(paste0(data_dir, "Bootcamp Completers Registration Data 2022-2025.xlsx"), na = c("", "NA", "N/A"))
+intern_bcreg_bceval_data <- read_excel(paste0(data_dir, "Intern_BCReg_BCEval_cleaned.xlsx"))
+```
+
+```{r}
+colnames(eval_data)
+```
+
+```{r}
+colnames(registration_data)
+```
+
+```{r}
+colnames(intern_bcreg_bceval_data)
+```
+
+
+Load the field mapping files (long description -> short name)
+```{r}
+eval_fields <- read_csv(paste0(data_dir, "eval_data_fields.csv"), show_col_types = FALSE)
+bootcamp_registration_fields <- read_csv(paste0(data_dir, "bootcamp_registration_fields.csv"), show_col_types = FALSE)
+intern_bcreg_bceval_fields <- read_csv(paste0(data_dir, "Intern_BCReg_BCEval_fields.csv"), show_col_types = FALSE)
+```
+
+
+Check if all long fied names (description) matches between the columnames and the field mapping files, for both eval_data and registration_data.
+```{r}
+sum(colnames(eval_data) != eval_fields$Long_Description_Original)
+sum(colnames(registration_data) != bootcamp_registration_fields$Long_Description_Original)
+```
+
+
+Now, replace the column names with something more manageable using the field mapping files.
+```{r}
+colnames(eval_data) <- eval_fields$Name
+colnames(registration_data) <- bootcamp_registration_fields$Name
+```
+
+
+Normalize email to lowercase for comparison.
+```{r}
+eval_data$registration_email <- tolower(eval_data$registration_email)
+registration_data$email_address <- tolower(registration_data$email_address)
+```
+
+Now, compare the email addresses between the two datasets to see if they match.
+```{r}
+setdiff(eval_data$registration_email, registration_data$email_address)
+```
+
+
+```{r}
+setdiff(registration_data$email_address, eval_data$registration_email)
+```
+
+Combine the tables, only keep those in eval_data.
+```{r}
+eval_registration_data <- left_join(eval_data, registration_data, by = c("registration_email" = "email_address"))
+```
+
+
+```{r}
+colnames(eval_registration_data)
+```
+
+
+
+
+
+```{r}
+shorten_school_name <- function(school_name) {
+  switch(school_name,
+    "Huston-Tillotson University" = "HTU",
+    "Prairie View A&M University" = "PVAMU",
+    "Texas A&M International University" = "TAMIU",
+    "University of Texas Health Science Center Houston" = "UTHSC",
+    "Texas Tech University Health Sciences Center" = "TTUHSC",
+    "University of Texas at Arlington" = "UTA",
+    "University of Texas at El Paso" = "UTEP",
+    "University of Texas at Tyler" = "UTT",
+    "University of Texas Rio Grande Valley" = "UTRGV",
+    "University of Texas Permian Basin" = "UTPB", 
+    "Huston-Tilloston (HTU)" = "HTU",
+    "Other" = "Other",
+    "University of Texas-Rio Grande Valley (UTRGV)" = "UTRGV",
+    "Prairie View A&M (PVAMU)" = "PVAMU",
+    "UT Health - School of Public Health (UT - SPH)" = "UT-SPH",
+    "Texas A&M International (TAMIU)" = "TAMIU",
+    "UT Health - School of Biomedical Informatics (UT - SBMI)" = "UT-SBMI",
+    "Texas Tech Health Science Center (TTUHSC)" = "TTUHSC",
+    "University of Texas-Arlington (UTA)" = "UTA",
+    "University of Texas-Tyler (UTT)" = "UTT",
+    "University of Texas-El Paso (UTEP)" = "UTEP",
+    "University of Texas-Permian Basin (UTPB)" = "UTPB",
+    "Texas Southern University (TSU)" = "TSU", 
+    NA)
+}
+
+shorten_school_names = function(school_names) {
+  unlist(lapply(school_names, shorten_school_name)) 
+}
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(school_affiliated_short = shorten_school_names(school_affiliated),
+                site_name_short = shorten_school_names(site_name))
+```
+
+
+
+
+```{r}
+clean_internship_modality <- function(im) {
+  switch(im,
+         "In-Person" = "In-Person",
+         "In Person" = "In-Person",
+         "In-person" = "In-Person",
+         "In person" = "In-Person",
+         "In-Person¬†" = "In-Person",
+         
+         "In-person/hybrid (local travel to host site will be required)" = "In-Person/Hybrid",
+         "In-Person/Hybrid" = "In-Person/Hybrid",
+         
+         "Hybrid" = "Hybrid",
+         
+         "Either" = "Either",
+         
+         "Remote" = "Remote",
+         "Remote (no travel required)" = "Remote",
+         "Virtual/remote" = "Remote",
+         
+         NA)
+}
+
+clean_internship_modalities = function(ims) {
+  unlist(lapply(ims, clean_internship_modality)) 
+}
+```
+
+
+```{r}
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(internship_modality = clean_internship_modalities(internship_modality))
+```
+
+
+```{r}
+write_csv(eval_registration_data, paste0("cleaned_data/", "eval_registration_data.csv"))
+write_csv(intern_bcreg_bceval_data, paste0("cleaned_data/", "intern_bcreg_bceval_data.csv"))
+```
+
+
+
+```{r}
+agreement_levels <- c("Strongly agree",
+                      "Agree",
+                      "Neither agree or disagree",
+                      "Disagree",
+                      "Strongly disagree")
+
+consider_levels <- c("Definitely consider",
+                     "Might or might not consider",
+                     "Would not consider")
+
+confidence_levels <- c(
+  "Extremely confident",
+  "Quite confident",
+  "Somewhat confident",
+  "Slightly confident",
+  "Not at all confident"
+)
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  mutate(subject_matter_comprehension = factor(
+    subject_matter_comprehension,
+    levels = agreement_levels
+  )) %>%
+  group_by(subject_matter_comprehension, race) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(
+    id_cols = race,
+    names_from = subject_matter_comprehension,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+```{r}
+eval_registration_data %>%
+  mutate(internship_interest_flag = factor(
+    internship_interest_flag,
+    levels = consider_levels
+  )) %>%
+  group_by(internship_interest_flag, race) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(
+    id_cols = race,
+    names_from = internship_interest_flag,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  mutate(self_assessment_data_analysis = factor(
+    self_assessment_data_analysis,
+    levels = agreement_levels
+  )) %>%  
+  group_by(self_assessment_data_analysis) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(prop = n/sum(n)*100)
+```
+
+
+```{r}
+eval_registration_data %>%
+  mutate(self_assessment_data_sourcing = factor(
+    self_assessment_data_sourcing,
+    levels = confidence_levels
+  )) %>%  
+  group_by(self_assessment_data_sourcing) %>%
+  summarise(n = n(), .groups = "drop")
+```
+
+
+```{r}
+eval_registration_data %>%
+  group_by(instructor_engagement_quality) %>%
+  mutate(instructor_engagement_quality = factor(
+    instructor_engagement_quality,
+    levels = agreement_levels
+  )) %>%
+  summarise(n = n(), .groups = "drop")
+```
+
+
+```{r}
+eval_registration_data %>%
+  group_by(inclusive_environment_rating) %>%
+  mutate(inclusive_environment_rating = factor(
+    inclusive_environment_rating,
+    levels = agreement_levels
+  )) %>%
+  summarise(n = n(), .groups = "drop")
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  group_by(learning_objective_clarity) %>%
+  mutate(learning_objective_clarity = factor(
+    learning_objective_clarity,
+    levels = agreement_levels
+  )) %>%
+  summarise(n = n(), .groups = "drop")
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  group_by(outside_study_hours) %>%
+  summarise(n = n(), .groups = "drop")
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  group_by(workload_pacing_gauge) %>%
+  summarise(n = n(), .groups = "drop")
+```
+
+
+```{r}
+eval_registration_data %>%
+  mutate(self_assessment_data_sourcing = factor(
+    self_assessment_data_sourcing,
+    levels = confidence_levels
+  )) %>%
+  group_by(workload_pacing_gauge, self_assessment_data_sourcing) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(
+    id_cols = self_assessment_data_sourcing,
+    names_from = workload_pacing_gauge,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+```{r}
+eval_registration_data %>%
+  mutate(self_assessment_data_sourcing = factor(
+    self_assessment_data_sourcing,
+    levels = confidence_levels
+  )) %>%
+  group_by(outside_study_hours, self_assessment_data_sourcing) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(
+    id_cols = self_assessment_data_sourcing,
+    names_from = outside_study_hours,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+
+```{r}
+eval_registration_data %>%
+  group_by(self_assessment_data_analysis) %>%
+  summarise(n = n(), .groups = "drop") 
+```
+
+
+```{r}
+eval_registration_data %>%
+  mutate(self_assessment_data_analysis = factor(
+    self_assessment_data_analysis,
+    levels = agreement_levels
+  )) %>%
+  group_by(workload_pacing_gauge, self_assessment_data_analysis) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(
+    id_cols = self_assessment_data_analysis,
+    names_from = workload_pacing_gauge,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+

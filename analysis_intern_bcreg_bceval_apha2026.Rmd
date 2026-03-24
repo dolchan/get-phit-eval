@@ -1,0 +1,606 @@
+---
+title: "GET-PHIT evaluation data to investigate the effect of the participants' readiness on the outcomes"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(readr)
+```
+
+# Background and Data Preparation
+
+## Preparing the data for the analysis of the effect of the participants' readiness on the outcomes
+
+We will use the data from the GET-PHIT evaluation to investigate the effect of the participants' readiness on the outcomes. We first merged the registration and evaluation datasets. Participants who did not have an email listed on one of the datasets or had different emails listed on the datasets, were not matched. Then, the internship data were added by matching by name. The resulting dataset was cleaned by removing duplicates and participants who did not have a valid email address. The cleaned dataset was then used for the analysis. The cleaned dataset have *644* participants.
+
+```{r}
+cleaned_data_dir <- "cleaned_data/"
+
+intern_bcreg_bceval_data <- read_csv(paste0(cleaned_data_dir, "intern_bcreg_bceval_data.csv"), show_col_types = FALSE)
+```
+
+Some fields needs to be converted into "factors" with proper orders. For example, the agreement levels for the questions about the participants' readiness to participate in the internship program, and the confidence levels for the questions about the participants' confidence in their skills and abilities. We will use the following levels for the agreement and confidence questions:
+
+```{r}
+agreement_levels_neutral <- c("Strongly Agree",
+                              "Agree",
+                              "Neutral",
+                              "Disagree",
+                              "Strongly Disagree")
+
+
+agreement_levels_neither <- c("Strongly agree",
+                              "Agree",
+                              "Neither agree or disagree",
+                              "Disagree",
+                              "Strongly disagree")
+
+
+consider_levels <- c("Definitely consider",
+                     "Might or might not consider",
+                     "Would not consider")
+
+confidence_levels <- c(
+  "Extremely confident",
+  "Quite confident",
+  "Somewhat confident",
+  "Slightly confident",
+  "Not at all confident"
+)
+```
+
+```{r}
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(tech_equity_equipped = factor(
+    tech_equity_equipped,
+    levels = agreement_levels_neutral
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(ability_analyze_visualize = factor(
+    ability_analyze_visualize,
+    levels = agreement_levels_neither
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(confidence_data_mgmt = factor(
+    confidence_data_mgmt,
+    levels = confidence_levels
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(confidence_advanced_work = factor(
+    confidence_advanced_work,
+    levels = confidence_levels
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(internship_interest = factor(
+    internship_interest,
+    levels = consider_levels
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(internship_completed = ifelse(is.na(internship_semester), "No", "Yes"))
+```
+
+## Analysis Plan
+
+### Basic Statistics and Visualizations
+
+#### 1. GPA distribution
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(current_gpa)) %>%
+  dplyr::select(current_gpa) %>%
+  dplyr::mutate(current_gpa = as.numeric(current_gpa)) %>%
+  summary()
+```
+
+Let's create a histogram to visualize the distribution of GPA among the participants.
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(current_gpa)) %>%
+  dplyr::select(current_gpa) %>%
+  dplyr::mutate(current_gpa = as.numeric(current_gpa)) %>%
+  ggplot(aes(x = current_gpa)) +
+  geom_histogram(binwidth = 0.5, fill = "blue", color = "black") +
+  labs(title = "Distribution of Current GPA among Participants",
+       x = "Current GPA",
+       y = "Frequency") +
+  theme_minimal()
+
+ggsave("gpa_distribution.pdf", width = 6, height = 4)
+```
+
+#### 2. Major distribution
+
+Different institutions have different academics units and majors, leading to 80 different names for majors in our original datasets.  We group them based on their similarities for simplicity.  Two-column table mapping the original majors to the simplified ones are stored in "intern_bcreg_bceval_majors.tsv".
+
+```{r}
+major_mapping <- read_tsv("intern_bcreg_bceval_majors.tsv", show_col_types = FALSE)
+```
+
+Let's keep the original major names in the dataset and rename it to "original_major", and add a new column for the simplified major names based on the mapping table. Rename the new column to "major" and move the new "major" column before the "original_major" column for better readability.
+
+```{r}
+intern_bcreg_bceval_data <- 
+  intern_bcreg_bceval_data %>%
+  dplyr::rename(original_major = major) %>%
+  dplyr::mutate(original_major = toupper(original_major)) %>%
+  dplyr::left_join(major_mapping, by = c("original_major" = "original_major")) %>%
+  dplyr::rename(major = simplified_major) %>%
+  dplyr::relocate(major, .before = original_major)
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(major) %>%
+  table() %>%
+  sort(decreasing = TRUE)
+```
+
+Let's create a bar plot to visualize the distribution of majors among the participants.
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(major) %>%
+  table() %>%
+  as.data.frame() %>%
+  ggplot(aes(x = reorder(major, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Distribution of Majors among Participants",
+       x = "Major",
+       y = "Frequency") +
+  theme_minimal() +
+  coord_flip()
+
+ggsave("major_distribution.pdf", width = 6, height = 4)
+```
+
+
+#### 4. Classification Distribution
+
+Let's create a bar plot to visualize the distribution of classifications among the participants.
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(current_student_classification) %>%
+  table() %>%
+  as.data.frame() %>%
+  ggplot(aes(x = reorder(current_student_classification, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Distribution of Classifications among Participants",
+       x = "Classification",
+       y = "Frequency") +
+  theme_minimal() +
+  coord_flip()
+
+ggsave("classification_distribution.pdf", width = 6, height = 4)
+```
+
+
+#### 5. Native Language Distribution
+
+Creating a bar plot to visualize the distribution of native languages among the participants.  We first need to reassign native language values to "English" if it's set to NA, and create a bar plot to visualize the distribution of native languages among the participants. 
+```{r, fig.width=6, fig.height=8}
+intern_bcreg_bceval_data <- 
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(native_language = ifelse(is.na(native_language), "English", native_language))
+
+intern_bcreg_bceval_data %>%
+  dplyr::select(native_language) %>%
+  table() %>%
+  as.data.frame() %>%
+  ggplot(aes(x = reorder(native_language, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Distribution of Native Languages among Participants",
+       x = "Native Language",
+       y = "Frequency") +
+  theme_minimal() +
+  coord_flip()
+
+ggsave("native_language_distribution.pdf", width = 6, height = 8)
+```
+
+### Tech Equity Equipped and GET-PHIT outcomes
+Let's focus on tech_equity_equipped and confidence_advanced_work as key variables to explore in relation to internship interest and completion, as these are likely to be the most actionable findings for program improvement. For example, if we find that students who feel more equipped with technology are more confident in their advanced work skills, and that confidence is associated with higher internship interest and completion rates, this would suggest that efforts to improve students' technology skills could have a positive impact on their internship outcomes. 
+
+#### 1. Tech Equity Equipped Distribution
+Let's create a bar plot to visualize the distribution of tech equity equipped levels among the participants.
+
+We will first look at the distribution of tech equity equipped levels among the participants, and then we will explore the relationship between tech equity equipped and internship interest and completion.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped) %>%
+  table() %>%
+  as.data.frame() %>%
+  ggplot(aes(x = reorder(tech_equity_equipped, Freq), y
+       = Freq)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Distribution of Tech Equity Equipped Levels among Participants",
+       x = "Tech Equity Equipped Level",
+       y = "Frequency") +
+  theme_minimal() +
+  coord_flip()
+
+ggsave("tech_equity_equipped_distribution.pdf", width = 8, height = 4)
+```
+
+Instead of frequency, we can also visualize the percentage of participants in each tech equity equipped level. We can calculate the percentage by dividing the frequency of each level by the total number of participants and multiplying by 100. Then, we can create a bar plot to visualize the distribution of tech equity equipped levels among the participants based on percentage.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::mutate(Percentage = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = reorder(tech_equity_equipped, Percentage), y = Percentage)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Distribution of Tech Equity Equipped Levels among Participants",
+       x = "Tech Equity Equipped Level",
+       y = "Percentage") +
+  theme_minimal() +
+  coord_flip()
+
+ggsave("tech_equity_equipped_distribution_percentage.pdf", width = 8, height = 4)
+```
+
+
+#### 2. Tech Equity Equipped vs Internship Interest
+Let's see if tech equity equipped levels are associated with internship interest among the participants. We can create a contingency table to see the frequency of each internship interest level within each tech equity equipped level. Then, we can calculate the proportion of each internship interest level within each tech equity equipped level to visualize the relationship between tech equity equipped levels and internship interest among the participants.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped, internship_interest) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100)
+```
+
+
+Let's create a bar plot to visualize the relationship between tech equity equipped levels and internship interest among the participants. We will use proportion within each Tech Equity Equipped level to visualize the relationship between tech equity equipped levels and internship interest among the participants. We can calculate the proportion by dividing the frequency of each internship interest level within each tech equity equipped level by the total frequency of that tech equity equipped level.
+```{r, fig.width=10, fig.height=5}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped, internship_interest) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = reorder(internship_interest, Proportion), y = Proportion, fill = internship_interest)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Relationship between Tech Equity Equipped Levels and Internship Interest among Participants",
+       x = "Internship Interest Level",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  coord_flip() +
+  facet_wrap(~ tech_equity_equipped)
+
+ggsave("tech_equity_equipped_vs_internship_interest.pdf", width = 10, height = 5)
+```
+
+Let's perform chi-squared test to see if there is a statistically significant association between tech equity equipped levels and internship interest among the participants. Summarize chi-squared test results, including the chi-squared statistic, degrees of freedom, and p-value.
+
+```{r}
+chisq_test <- chisq.test(table(intern_bcreg_bceval_data$tech_equity_equipped, intern_bcreg_bceval_data$internship_interest))
+chisq_test
+```
+
+
+
+#### 3. Tech Equity Equipped vs Internship Completion
+Now, we will look into the relationship between tech equity equipped levels and internship completion among the participants. We can create a contingency table to see the frequency of internship completion within each tech equity equipped level. Then, we can calculate the proportion of internship completion within each tech equity equipped level to visualize the relationship between tech equity equipped levels and internship completion among the participants.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped, internship_completed) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100)
+```
+
+Let's create a bar plot to visualize the relationship between tech equity equipped levels and internship completion among the participants. We will use proportion within each Tech Equity Equipped level to visualize the relationship between tech equity equipped levels and internship completion among the participants. We can calculate the proportion by dividing the frequency of internship completion within each tech equity equipped level by the total frequency of that tech equity equipped level.
+
+```{r, fig.width=10, fig.height=5}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped, internship_completed) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = reorder(internship_completed, Proportion), y = Proportion, fill = internship_completed)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Relationship between Tech Equity Equipped Levels and Internship Completion among Participants",
+       x = "Internship Completion",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  coord_flip() +
+  facet_wrap(~ tech_equity_equipped)
+
+ggsave("tech_equity_equipped_vs_internship_completion.pdf", width = 10, height = 5)
+```
+
+Let's perform chi-squared test to see if there is a statistically significant association between tech equity equipped levels and internship completion among the participants, and summarize chi-squared test results, including the chi-squared statistic, degrees of freedom, and p-value.
+
+```{r}
+chisq_test_completion <- chisq.test(table(intern_bcreg_bceval_data$tech_equity_equipped, intern_bcreg_bceval_data$internship_completed))
+chisq_test_completion
+```
+
+
+
+### Confidence in Advanced Work Skills and GET-PHIT outcomes
+Additionally, if we find that students who gained more confidence in their advanced work skills are more likely to be interested in internships and complete them, this would suggest that building students' confidence in their abilities could also be an important factor in improving internship outcomes. Overall, the key point is that improving students' technology skills and confidence in their abilities could lead to increased interest and success in internships, which is a critical component of career readiness.
+
+
+#### 1. Confidence in Advanced Work Skills Distribution
+
+Let's create a bar plot to visualize the distribution of confidence in advanced work skills levels among the participants.
+```{r, fig.width=8, fig.height=4}
+intern_bcreg_bceval_data %>%
+  dplyr::select(confidence_advanced_work) %>%
+  table() %>%
+  as.data.frame() %>%
+  ggplot(aes(x = reorder(confidence_advanced_work, Freq), y = Freq)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Distribution of Confidence in Advanced Work Skills Levels among Participants",
+       x = "Confidence in Advanced Work Skills Level",
+       y = "Frequency") +
+  theme_minimal() +
+  coord_flip()
+
+ggsave("confidence_advanced_work_distribution.pdf", width = 8, height = 4)
+```
+
+
+#### 2. Tech Equity Equipped vs Confidence in Advanced Work Skills
+Let's see if Tech Equity Equipped levels are associated with confidence in advanced work skills among the participants after the bootcamp. We can create a contingency table to see the frequency of each confidence level within each tech equity equipped level. Then, we can calculate the proportion of each confidence level within each tech equity equipped level to visualize the relationship between tech equity equipped levels and confidence in advanced work skills among the participants.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped, confidence_advanced_work) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100)
+```
+
+
+Let's create a bar plot to visualize the relationship between tech equity equipped levels and confidence in advanced work skills among the participants. We will use proportion within each Tech Equity Equipped level to visualize the relationship between tech equity equipped levels and confidence in advanced work skills among the participants. We can calculate the proportion by dividing the frequency of each confidence level within each tech equity equipped level by the total frequency of that tech equity equipped level.
+
+```{r, fig.width=12, fig.align=5}
+intern_bcreg_bceval_data %>%
+  dplyr::select(tech_equity_equipped, confidence_advanced_work) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = confidence_advanced_work, y = Proportion, fill = confidence_advanced_work)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Relationship between Tech Equity Equipped Levels and Confidence in Advanced Work Skills among Participants",
+       x = "Confidence in Advanced Work Skills Level",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  coord_flip() +
+  facet_wrap(~ tech_equity_equipped)
+
+ggsave("tech_equity_equipped_vs_confidence_advanced_work.pdf", width = 12, height = 5)
+```
+
+Let's perform chi-squared test to see if there is a statistically significant association between tech equity equipped levels and confidence in advanced work skills among the participants, and summarize chi-squared test results, including the chi-squared statistic, degrees of freedom, and p-value.
+
+```{r}
+chisq_test_confidence <- chisq.test(table(intern_bcreg_bceval_data$tech_equity_equipped, intern_bcreg_bceval_data$confidence_advanced_work))
+chisq_test_confidence
+```
+
+
+
+#### 3. Confidence in Advanced Work Skills vs Internship Interest and Completion
+
+
+Let's see if confidence in advanced work skills levels are associated with internship interest among the participants.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(confidence_advanced_work, internship_interest) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(confidence_advanced_work) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100)
+```
+
+Let's create a bar plot to visualize the relationship between confidence in advanced work skills levels and internship interest among the participants. We will use proportion within each confidence level to visualize the relationship between confidence in advanced work skills levels and internship interest among the participants. We can calculate the proportion by dividing the frequency of each internship interest level within each confidence level by the total frequency of that confidence level.
+```{r, fig.width=12, fig.height=5}
+intern_bcreg_bceval_data %>%
+  dplyr::select(confidence_advanced_work, internship_interest) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(confidence_advanced_work) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = reorder(internship_interest, Proportion), y = Proportion, fill = internship_interest)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Relationship between Confidence in Advanced Work Skills Levels and Internship Interest among Participants",
+       x = "Internship Interest Level",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  coord_flip() +
+  facet_wrap(~ confidence_advanced_work)
+
+ggsave("confidence_advanced_work_vs_internship_interest.pdf", width = 12, height = 5)
+```
+
+Let's perform chi-squared test to see if there is a statistically significant association between confidence in advanced work skills levels and internship interest among the participants, and summarize chi-squared test results, including the chi-squared statistic, degrees of freedom, and p-value.
+
+```{r}
+chisq_test_interest <- chisq.test(table(intern_bcreg_bceval_data$confidence_advanced_work, intern_bcreg_bceval_data$internship_interest))
+chisq_test_interest
+```
+
+
+
+Let's see if confidence in advanced work skills levels are associated with internship completion among the participants.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(confidence_advanced_work, internship_completed) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(confidence_advanced_work) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100)
+```
+
+
+
+Let's create a bar plot to visualize the relationship between confidence in advanced work skills levels and internship completion among the participants. We will use proportion within each confidence level to visualize the relationship between confidence in advanced work skills levels and internship completion among the participants. We can calculate the proportion by dividing the frequency of internship completion within each confidence level by the total frequency of that confidence level.
+```{r, fig.width=10, fig.height=5}
+intern_bcreg_bceval_data %>%
+  dplyr::select(confidence_advanced_work, internship_completed) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(confidence_advanced_work) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = reorder(internship_completed, Proportion), y = Proportion, fill = internship_completed)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Relationship between Confidence in Advanced Work Skills Levels and Internship Completion among Participants",
+       x = "Internship Completion",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  coord_flip() +
+  facet_wrap(~ confidence_advanced_work)
+
+ggsave("confidence_advanced_work_vs_internship_completion.pdf", width = 10, height = 5)
+```
+
+
+Let's perform chi-squared test to see if there is a statistically significant association between confidence in advanced work skills levels and internship completion among the participants, and summarize chi-squared test results, including the chi-squared statistic, degrees of freedom, and p-value.
+
+```{r}
+chisq_test_completion_confidence <- chisq.test(table(intern_bcreg_bceval_data$confidence_advanced_work, intern_bcreg_bceval_data$internship_completed))
+chisq_test_completion_confidence
+```
+
+
+
+Now, let's see if internship interest translates to internship completion among the participants. We can create a contingency table to see the frequency of internship completion within each internship interest level. Then, we can calculate the proportion of internship completion within each internship interest level to visualize the relationship between internship interest levels and internship completion among the participants.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(internship_interest, internship_completed) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(internship_interest) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100)
+```
+
+Let's create a bar plot to visualize the relationship between internship interest levels and internship completion among the participants. We will use proportion within each internship interest level to visualize the relationship between internship interest levels and internship completion among the participants. We can calculate the proportion by dividing the frequency of internship completion within each internship interest level by the total frequency of that internship interest level.
+
+```{r, fig.width=10, fig.height=3}
+intern_bcreg_bceval_data %>%
+  dplyr::select(internship_interest, internship_completed) %>%
+  table() %>%
+  as.data.frame() %>%
+  dplyr::group_by(internship_interest) %>%
+  dplyr::mutate(Proportion = Freq / sum(Freq) * 100) %>%
+  ggplot(aes(x = reorder(internship_completed, Proportion), y = Proportion, fill = internship_completed)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(title = "Relationship between Internship Interest Levels and Internship Completion among Participants",
+       x = "Internship Completion",
+       y = "Proportion (%)") +
+  theme_minimal() +
+  coord_flip() +
+  facet_wrap(~ internship_interest)
+
+ggsave("internship_interest_vs_internship_completion.pdf", width = 10, height = 3)
+```
+
+Let's perform chi-squared test to see if there is a statistically significant association between internship interest levels and internship completion among the participants, and summarize chi-squared test results, including the chi-squared statistic, degrees of freedom, and p-value.
+
+```{r}
+chisq_test_interest_completion <- chisq.test(table(intern_bcreg_bceval_data$internship_interest, intern_bcreg_bceval_data$internship_completed))
+chisq_test_interest_completion
+```
+
+
+
+#### 4. Conclusion for Internship Interest, Internship Completion and Participants' Readiness
+Overall, the analysis of the relationship between participants' readiness (as measured by tech equity equipped and confidence in advanced work skills) and internship outcomes (internship interest and completion) can provide valuable insights into how to improve the GET-PHIT program. The analysis above suggests that there is a positive relationship between participants' readiness and their internship interest (X-squared = 18.194, df = 8, p-value = 0.01982) or between the confidence in advance analysis and their internship interest (X-squared = 197.33, df = 16, p-value < 2.2e-16); however, internship completion rate was not much different among the groups with different levels of readiness (X-squared = 6.1864, df = 4, p-value = 0.1857) and confidence in advanced analysis (X-squared = 3.6266, df = 4, p-value = 0.4589). This suggests that while improving participants' readiness may increase their interest in internships, it may not necessarily lead to higher completion rates. Therefore, it may be important to also focus on other factors that could influence internship completion, such as providing additional support and resources to participants throughout the internship process, or addressing any barriers that may prevent participants from completing their internships.  Finally, we noted there is a strong association between internship interest and internship completion (X-squared = 122.11, df = 2, p-value < 2.2e-16), which suggests that increasing participants' interest in internships could potentially lead to higher completion rates.
+
+
+
+
+
+### School, Bootcamp Site, Bootcamp Modality, Internship Completion
+Let's track the internship completion rates among the participants, from their affiliation (school_affiliated) to internship site to mode (remote or in-person). We can visualize this using Alluvial plot (ggalluvial). 
+
+```{r}
+library(ggalluvial)
+library(ggrepel)
+```
+
+
+```{r}
+intern_bcreg_bceval_site_school_mode_internship <-
+  intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(site_name)) %>%
+  dplyr::mutate(site_name = site_name_short,
+                school_affiliated = school_affiliated_short) %>%
+  dplyr::select(site_name, school_affiliated, mode, internship_completed) %>%
+  dplyr::rename(bootcamp_site = site_name, bootcamp_modality = mode) %>%
+  dplyr::group_by(bootcamp_site, school_affiliated, bootcamp_modality, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") 
+```
+
+
+```{r, fig.width=12, fig.height=6}
+intern_bcreg_bceval_site_school_mode_internship %>%
+  ggplot(
+    aes(
+      y = n,
+      axis1 = school_affiliated,
+      axis2 = bootcamp_site,
+      axis3 = bootcamp_modality,
+      axis4 = internship_completed
+    )
+  ) +
+  geom_alluvium(
+    aes(fill = internship_completed),
+    width = 1 / 8,
+  #  knot.pos = 0,
+    reverse = FALSE
+  ) +
+  geom_stratum(alpha = 0.25,
+               width = 1 / 8,
+               reverse = FALSE) +
+# --- CHANGED THIS SECTION ---
+  # Only use ggrepel's geom_text_repel for the first two axes
+  geom_text_repel(
+    stat = "stratum",
+    aes(label = after_stat(stratum)),
+    reverse = FALSE,
+    size = 3,
+    direction = "both",  # Prevent overlap vertically
+    nudge_x = 0.05     # Slightly push labels off the strata for better clarity
+  ) +
+  # ----------------------------
+scale_x_continuous(
+    breaks = 1:4,
+    labels = c("School Affiliation", "Bootcamp Site", "Bootcamp Modality", "Internship")
+  ) +
+  ggtitle("Internship completion by site and school affiliation")
+
+ggsave("internship_completion_alluvial.pdf", width = 12, height = 6)
+```
+

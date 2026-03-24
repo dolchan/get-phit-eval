@@ -1,0 +1,554 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(readr)
+```
+
+
+```{r}
+cleaned_data_dir <- "cleaned_data/"
+```
+
+```{r}
+eval_registration_data <- read_csv(paste0(cleaned_data_dir, "eval_registration_data.csv"), show_col_types = FALSE)
+intern_bcreg_bceval_data <- read_csv(paste0(cleaned_data_dir, "intern_bcreg_bceval_data.csv"), show_col_types = FALSE)
+```
+
+
+
+
+```{r}
+agreement_levels_neutral <- c("Strongly Agree",
+                              "Agree",
+                              "Neutral",
+                              "Disagree",
+                              "Strongly Disagree")
+
+
+agreement_levels_neither <- c("Strongly agree",
+                              "Agree",
+                              "Neither agree or disagree",
+                              "Disagree",
+                              "Strongly disagree")
+
+
+consider_levels <- c("Definitely consider",
+                     "Might or might not consider",
+                     "Would not consider")
+
+confidence_levels <- c(
+  "Extremely confident",
+  "Quite confident",
+  "Somewhat confident",
+  "Slightly confident",
+  "Not at all confident"
+)
+```
+
+
+```{r}
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(tech_equity_readiness = factor(
+    tech_equity_readiness,
+    levels = agreement_levels_neutral
+  ))
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(self_assessment_data_analysis = factor(
+    self_assessment_data_analysis,
+    levels = agreement_levels_neither
+  ))
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(self_assessment_data_sourcing = factor(
+    self_assessment_data_sourcing,
+    levels = confidence_levels
+  ))
+
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(advanced_work_confidence = factor(
+    advanced_work_confidence,
+    levels = confidence_levels
+  ))
+
+
+eval_registration_data <-
+  eval_registration_data %>%
+  dplyr::mutate(internship_interest_flag = factor(
+    internship_interest_flag,
+    levels = consider_levels
+  ))
+```
+
+
+```{r}
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(tech_equity_equipped = factor(
+    tech_equity_equipped,
+    levels = agreement_levels_neutral
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(ability_analyze_visualize = factor(
+    ability_analyze_visualize,
+    levels = agreement_levels_neither
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(confidence_data_mgmt = factor(
+    confidence_data_mgmt,
+    levels = confidence_levels
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(confidence_advanced_work = factor(
+    confidence_advanced_work,
+    levels = confidence_levels
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(internship_interest = factor(
+    internship_interest,
+    levels = consider_levels
+  ))
+
+intern_bcreg_bceval_data <-
+  intern_bcreg_bceval_data %>%
+  dplyr::mutate(internship_completed = ifelse(is.na(internship_semester), "No", "Yes"))
+```
+
+
+## GPA
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(current_gpa)) %>%
+  dplyr::select(current_gpa) %>%
+  dplyr::mutate(current_gpa = as.numeric(current_gpa)) %>%
+  summary()
+
+```
+
+
+## Still needs additional clean up for academic major names.
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(major) %>%
+  dplyr::mutate(major = toupper(major)) %>%
+  table() %>%
+  sort(decreasing = TRUE)
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(major) %>%
+  dplyr::mutate(major = toupper(major)) %>%
+  dplyr::pull(major) %>%
+  unique() %>%
+  sort() 
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(current_student_classification) %>%
+  dplyr::mutate(current_student_classification = toupper(current_student_classification)) %>%
+  table() %>%
+  sort(decreasing = TRUE)
+```
+
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(native_english)) %>%
+  dplyr::select(native_language, native_english) %>%
+  dplyr::mutate(native_language = ifelse(is.na(native_language), "English", native_language)) %>%
+  dplyr::mutate(native_language = toupper(native_language)) %>%
+  dplyr::group_by(native_language) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(n = desc(n))
+```
+
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(workload_pacing)) %>%
+  dplyr::select(workload_pacing) %>%
+  dplyr::group_by(workload_pacing) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(n = desc(n))
+```
+
+
+
+```{r}
+# outside study hours
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(outside_hours)) %>%
+  dplyr::select(outside_hours) %>%
+  dplyr::group_by(outside_hours) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(outside_hours)
+```
+
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(tech_equity_equipped)) %>%
+  dplyr::select(tech_equity_equipped) %>%
+  dplyr::group_by(tech_equity_equipped) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::arrange(tech_equity_equipped)
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(ability_analyze_visualize)) %>%
+  dplyr::select(ability_analyze_visualize, tech_equity_equipped) %>%
+  dplyr::group_by(ability_analyze_visualize, tech_equity_equipped) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = tech_equity_equipped,
+    names_from = ability_analyze_visualize,
+    values_from = n,
+    values_fill = 0
+  ) 
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(ability_analyze_visualize)) %>%
+  dplyr::select(tech_equity_equipped, ability_analyze_visualize) %>%
+  dplyr::group_by(tech_equity_equipped, ability_analyze_visualize) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = ability_analyze_visualize,
+    names_from = tech_equity_equipped,
+    values_from = n,
+    values_fill = 0
+  ) 
+```
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(confidence_advanced_work)) %>%
+  dplyr::select(tech_equity_equipped, confidence_advanced_work) %>%
+  dplyr::group_by(tech_equity_equipped, confidence_advanced_work) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = tech_equity_equipped,
+    names_from = confidence_advanced_work,
+    values_from = n,
+    values_fill = 0
+  ) 
+```
+
+
+```{r}
+# let's generate bar charts for the self_assessment_data_analysis variable, color coded by the tech_equity_readiness variable
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(ability_analyze_visualize)) %>%
+  dplyr::select(ability_analyze_visualize, tech_equity_equipped) %>%
+  dplyr::group_by(ability_analyze_visualize, tech_equity_equipped) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = ability_analyze_visualize, y = n, fill = tech_equity_equipped)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Self Assessment of Data Analysis Skills", y = "Count", fill = "Tech Equity Equipped") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+# let's generate bar charts for the tech_equity_readiness variable, color coded by the self_assessment_data_analysis variable
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(tech_equity_equipped)) %>%
+  dplyr::select(ability_analyze_visualize, tech_equity_equipped) %>%
+  dplyr::group_by(ability_analyze_visualize, tech_equity_equipped) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = tech_equity_equipped, y = n, fill = ability_analyze_visualize)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Tech Equity Equipped", y = "Count", fill = "Self Assessment of Data Analysis Skills") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+## *** point to inlcude in the abstract ***
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(tech_equity_equipped)) %>%
+  dplyr::select(confidence_advanced_work, tech_equity_equipped) %>%
+  dplyr::group_by(confidence_advanced_work, tech_equity_equipped) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = tech_equity_equipped, y = n, fill = confidence_advanced_work)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Tech Equity Equipped", y = "Count", fill = "Confidence in Advanced Work") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(internship_interest)) %>%
+  dplyr::select(confidence_advanced_work, internship_interest) %>%
+  dplyr::group_by(confidence_advanced_work, internship_interest) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = confidence_advanced_work,
+    names_from = internship_interest,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+
+```{r}
+# let's generate bar charts for the tech_equity_readiness variable, color coded by the advanced_work_confidence variable
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(internship_interest)) %>%
+  dplyr::select(confidence_advanced_work, internship_interest) %>%
+  dplyr::group_by(confidence_advanced_work, internship_interest) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = internship_interest, y = n, fill = confidence_advanced_work)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Internship Interest", y = "Count", fill = "Confidence in Advanced Work") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+# *** point to include in the abstract ***
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(internship_interest)) %>%
+  dplyr::select(confidence_advanced_work, internship_interest) %>%
+  dplyr::group_by(confidence_advanced_work, internship_interest) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = confidence_advanced_work, y = n, fill = internship_interest)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Confidence in Advanced Work", y = "Count", fill = "Internship Interest") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+## *** internship interest vs tech_equity_equipped
+## *** internship completion vs tech_equity_equipped or other parameters
+## *** focus on tech_equity_equipped and confidence_advanced_work as key variables to explore in relation to internship interest and completion, as these are likely to be the most actionable findings for program improvement. For example, if we find that students who feel more equipped with technology are more confident in their advanced work skills, and that confidence is associated with higher internship interest and completion rates, this would suggest that efforts to improve students' technology skills could have a positive impact on their internship outcomes. Additionally, if we find that students who gained more confidence in their advanced work skills are more likely to be interested in internships and complete them, this would suggest that building students' confidence in their abilities could also be an important factor in improving internship outcomes. Overall, the key point is that improving students' technology skills and confidence in their abilities could lead to increased interest and success in internships, which is a critical component of career readiness.
+
+## *** also explore if there is any difference in remote and in-person participants.
+
+# students who gained more confidence will be more likely to be interested in internships, and more likely to complete internships.
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(internship_interest)) %>%
+  dplyr::select(ability_analyze_visualize, internship_interest) %>%
+  dplyr::group_by(ability_analyze_visualize, internship_interest) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = ability_analyze_visualize, y = n, fill = internship_interest)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Ability to Analyze and Visualize", y = "Count", fill = "Internship Interest") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(ability_analyze_visualize)) %>%
+  dplyr::select(ability_analyze_visualize, confidence_advanced_work) %>%
+  dplyr::group_by(ability_analyze_visualize, confidence_advanced_work) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  ggplot(aes(x = ability_analyze_visualize, y = n, fill = confidence_advanced_work)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Ability to Analyze and Visualize", y = "Count", fill = "Confidence in Advanced Work") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(internship_interest, internship_completed) %>%
+  dplyr::group_by(internship_interest, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = internship_interest,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(internship_modality)) %>%
+  dplyr::select(internship_modality, internship_interest) %>%
+  dplyr::group_by(internship_modality, internship_interest) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = internship_modality,
+    names_from = internship_interest,
+    values_from = n,
+    values_fill = 0
+  )
+```
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(site_name, internship_completed) %>%
+  dplyr::group_by(site_name, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = site_name,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  arrange(desc(Yes))
+```
+
+
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::select(school_affiliated, internship_completed) %>%
+  dplyr::group_by(school_affiliated, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = school_affiliated,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  arrange(desc(Yes))
+```
+
+```{r}
+intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(mode)) %>%
+  dplyr::select(mode, internship_completed) %>%
+  dplyr::group_by(mode, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  tidyr::pivot_wider(
+    id_cols = mode,
+    names_from = internship_completed,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  arrange(desc(Yes))
+
+```
+
+
+```{r}
+intern_bcreg_bceval_site_school_mode_internship <-
+  intern_bcreg_bceval_data %>%
+  dplyr::filter(!is.na(site_name)) %>%
+  dplyr::mutate(site_name = site_name_short,
+                school_affiliated = school_affiliated_short) %>%
+  dplyr::select(site_name, school_affiliated, mode, internship_completed) %>%
+  dplyr::group_by(site_name, school_affiliated, mode, internship_completed) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") 
+```
+
+
+
+```{r}
+# intern_bcreg_bceval_site_school_mode_internship <-
+#   intern_bcreg_bceval_data %>%
+#   dplyr::filter(!is.na(site_name)) %>%
+#   dplyr::mutate(site_name = shorten_school_names(site_name),
+#                 school_affiliated = shorten_school_names(school_affiliated)) %>%
+#   dplyr::select(site_name, school_affiliated, internship_completed) %>%
+#   dplyr::group_by(site_name, school_affiliated, internship_completed) %>%
+#   dplyr::summarise(n = n(), .groups = "drop_last") 
+```
+
+
+```{r}
+library(ggalluvial)
+```
+
+
+
+
+```{r}
+intern_bcreg_bceval_site_school_mode_internship %>%
+  ggplot(
+    aes(
+      y = n,
+      axis1 = school_affiliated,
+      axis2 = site_name,
+      axis3 = mode,
+      axis4 = internship_completed
+    )
+  ) +
+  geom_alluvium(
+    aes(fill = internship_completed),
+    width = 1 / 8,
+  #  knot.pos = 0,
+    reverse = FALSE
+  ) +
+  geom_stratum(alpha = 0.25,
+               width = 1 / 6,
+               reverse = FALSE) +
+  geom_text(
+    stat = "stratum",
+    aes(label = after_stat(stratum)),
+    reverse = FALSE,
+    size = 3
+  ) +
+  scale_x_continuous(
+    breaks = 1:4,
+    labels = c("School Affiliation", "Site", "Mode", "Internship")
+  ) +
+  ggtitle("Internship completion by site and school affiliation")
+```
+
+
+
+
+
