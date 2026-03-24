@@ -1,6 +1,13 @@
 ---
 title: "GET-PHIT evaluation data to investigate the effect of the participants' readiness on the outcomes"
-output: html_notebook
+output: 
+  html_notebook: 
+    toc: true
+    toc_depth: 4
+    number_sections: true
+    fig_caption: true
+    code_folding: hide
+
 ---
 
 ```{r}
@@ -9,9 +16,7 @@ library(readxl)
 library(readr)
 ```
 
-# Background and Data Preparation
-
-## Preparing the data for the analysis of the effect of the participants' readiness on the outcomes
+# Data Preparation 
 
 We will use the data from the GET-PHIT evaluation to investigate the effect of the participants' readiness on the outcomes. We first merged the registration and evaluation datasets. Participants who did not have an email listed on one of the datasets or had different emails listed on the datasets, were not matched. Then, the internship data were added by matching by name. The resulting dataset was cleaned by removing duplicates and participants who did not have a valid email address. The cleaned dataset was then used for the analysis. The cleaned dataset have *644* participants.
 
@@ -92,11 +97,11 @@ intern_bcreg_bceval_data <-
   dplyr::mutate(internship_completed = ifelse(is.na(internship_semester), "No", "Yes"))
 ```
 
-## Analysis Plan
+# Analysis Plan
 
-### Basic Statistics and Visualizations
+## Basic Statistics and Visualizations
 
-#### 1. GPA distribution
+### GPA distribution
 
 ```{r}
 intern_bcreg_bceval_data %>%
@@ -122,7 +127,7 @@ intern_bcreg_bceval_data %>%
 ggsave("gpa_distribution.pdf", width = 6, height = 4)
 ```
 
-#### 2. Major distribution
+### Major distribution
 
 Different institutions have different academics units and majors, leading to 80 different names for majors in our original datasets.  We group them based on their similarities for simplicity.  Two-column table mapping the original majors to the simplified ones are stored in "intern_bcreg_bceval_majors.tsv".
 
@@ -169,7 +174,7 @@ ggsave("major_distribution.pdf", width = 6, height = 4)
 ```
 
 
-#### 4. Classification Distribution
+### Classification Distribution
 
 Let's create a bar plot to visualize the distribution of classifications among the participants.
 ```{r}
@@ -189,7 +194,7 @@ ggsave("classification_distribution.pdf", width = 6, height = 4)
 ```
 
 
-#### 5. Native Language Distribution
+### Native Language Distribution
 
 Creating a bar plot to visualize the distribution of native languages among the participants.  We first need to reassign native language values to "English" if it's set to NA, and create a bar plot to visualize the distribution of native languages among the participants. 
 ```{r, fig.width=6, fig.height=8}
@@ -212,10 +217,10 @@ intern_bcreg_bceval_data %>%
 ggsave("native_language_distribution.pdf", width = 6, height = 8)
 ```
 
-### Tech Equity Equipped and GET-PHIT outcomes
+## Tech Equity Equipped and GET-PHIT outcomes
 Let's focus on tech_equity_equipped and confidence_advanced_work as key variables to explore in relation to internship interest and completion, as these are likely to be the most actionable findings for program improvement. For example, if we find that students who feel more equipped with technology are more confident in their advanced work skills, and that confidence is associated with higher internship interest and completion rates, this would suggest that efforts to improve students' technology skills could have a positive impact on their internship outcomes. 
 
-#### 1. Tech Equity Equipped Distribution
+### Tech Equity Equipped Distribution
 Let's create a bar plot to visualize the distribution of tech equity equipped levels among the participants.
 
 We will first look at the distribution of tech equity equipped levels among the participants, and then we will explore the relationship between tech equity equipped and internship interest and completion.
@@ -256,8 +261,8 @@ intern_bcreg_bceval_data %>%
 ggsave("tech_equity_equipped_distribution_percentage.pdf", width = 8, height = 4)
 ```
 
+### Tech Equity Equipped vs Internship Interest
 
-#### 2. Tech Equity Equipped vs Internship Interest
 Let's see if tech equity equipped levels are associated with internship interest among the participants. We can create a contingency table to see the frequency of each internship interest level within each tech equity equipped level. Then, we can calculate the proportion of each internship interest level within each tech equity equipped level to visualize the relationship between tech equity equipped levels and internship interest among the participants.
 
 ```{r}
@@ -299,7 +304,7 @@ chisq_test
 
 
 
-#### 3. Tech Equity Equipped vs Internship Completion
+### Tech Equity Equipped vs Internship Completion
 Now, we will look into the relationship between tech equity equipped levels and internship completion among the participants. We can create a contingency table to see the frequency of internship completion within each tech equity equipped level. Then, we can calculate the proportion of internship completion within each tech equity equipped level to visualize the relationship between tech equity equipped levels and internship completion among the participants.
 
 ```{r}
@@ -341,11 +346,11 @@ chisq_test_completion
 
 
 
-### Confidence in Advanced Work Skills and GET-PHIT outcomes
+## Confidence in Advanced Work Skills and GET-PHIT outcomes
 Additionally, if we find that students who gained more confidence in their advanced work skills are more likely to be interested in internships and complete them, this would suggest that building students' confidence in their abilities could also be an important factor in improving internship outcomes. Overall, the key point is that improving students' technology skills and confidence in their abilities could lead to increased interest and success in internships, which is a critical component of career readiness.
 
 
-#### 1. Confidence in Advanced Work Skills Distribution
+### Confidence in Advanced Work Skills Distribution
 
 Let's create a bar plot to visualize the distribution of confidence in advanced work skills levels among the participants.
 ```{r, fig.width=8, fig.height=4}
@@ -365,7 +370,7 @@ ggsave("confidence_advanced_work_distribution.pdf", width = 8, height = 4)
 ```
 
 
-#### 2. Tech Equity Equipped vs Confidence in Advanced Work Skills
+### Tech Equity Equipped vs Confidence in Advanced Work Skills
 Let's see if Tech Equity Equipped levels are associated with confidence in advanced work skills among the participants after the bootcamp. We can create a contingency table to see the frequency of each confidence level within each tech equity equipped level. Then, we can calculate the proportion of each confidence level within each tech equity equipped level to visualize the relationship between tech equity equipped levels and confidence in advanced work skills among the participants.
 
 ```{r}
@@ -407,8 +412,7 @@ chisq_test_confidence
 ```
 
 
-
-#### 3. Confidence in Advanced Work Skills vs Internship Interest and Completion
+### Confidence in Advanced Work Skills vs Internship Interest and Completion
 
 
 Let's see if confidence in advanced work skills levels are associated with internship interest among the participants.
@@ -534,15 +538,7 @@ chisq_test_interest_completion
 ```
 
 
-
-#### 4. Conclusion for Internship Interest, Internship Completion and Participants' Readiness
-Overall, the analysis of the relationship between participants' readiness (as measured by tech equity equipped and confidence in advanced work skills) and internship outcomes (internship interest and completion) can provide valuable insights into how to improve the GET-PHIT program. The analysis above suggests that there is a positive relationship between participants' readiness and their internship interest (X-squared = 18.194, df = 8, p-value = 0.01982) or between the confidence in advance analysis and their internship interest (X-squared = 197.33, df = 16, p-value < 2.2e-16); however, internship completion rate was not much different among the groups with different levels of readiness (X-squared = 6.1864, df = 4, p-value = 0.1857) and confidence in advanced analysis (X-squared = 3.6266, df = 4, p-value = 0.4589). This suggests that while improving participants' readiness may increase their interest in internships, it may not necessarily lead to higher completion rates. Therefore, it may be important to also focus on other factors that could influence internship completion, such as providing additional support and resources to participants throughout the internship process, or addressing any barriers that may prevent participants from completing their internships.  Finally, we noted there is a strong association between internship interest and internship completion (X-squared = 122.11, df = 2, p-value < 2.2e-16), which suggests that increasing participants' interest in internships could potentially lead to higher completion rates.
-
-
-
-
-
-### School, Bootcamp Site, Bootcamp Modality, Internship Completion
+## School, Bootcamp Site, Bootcamp Modality, Internship Completion
 Let's track the internship completion rates among the participants, from their affiliation (school_affiliated) to internship site to mode (remote or in-person). We can visualize this using Alluvial plot (ggalluvial). 
 
 ```{r}
@@ -603,4 +599,10 @@ scale_x_continuous(
 
 ggsave("internship_completion_alluvial.pdf", width = 12, height = 6)
 ```
+
+
+# Conclusion for Internship Interest, Internship Completion and Participants' Readiness
+Overall, the analysis of the relationship between participants' readiness (as measured by tech equity equipped and confidence in advanced work skills) and internship outcomes (internship interest and completion) can provide valuable insights into how to improve the GET-PHIT program. The analysis above suggests that there is a positive relationship between participants' readiness and their internship interest (**X-squared = 18.194, df = 8, p-value = 0.01982**) or between the confidence in advance analysis and their internship interest (**X-squared = 197.33, df = 16, p-value < 2.2e-16**); however, internship completion rate was not much different among the groups with different levels of readiness (**X-squared = 6.1864, df = 4, p-value = 0.1857**) and confidence in advanced analysis (**X-squared = 3.6266, df = 4, p-value = 0.4589**). This suggests that while improving participants' readiness may increase their interest in internships, it may not necessarily lead to higher completion rates. Therefore, it may be important to also focus on other factors that could influence internship completion, such as providing additional support and resources to participants throughout the internship process, or addressing any barriers that may prevent participants from completing their internships.  Finally, we noted there is a strong association between internship interest and internship completion (**X-squared = 122.11, df = 2, p-value < 2.2e-16**), which suggests that increasing participants' interest in internships could potentially lead to higher completion rates.
+
+
 
